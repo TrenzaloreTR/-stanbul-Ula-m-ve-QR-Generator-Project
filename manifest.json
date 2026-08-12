@@ -1,7 +1,7 @@
 {
   "name": "İstUlaşım PWA",
   "short_name": "İstUlaşım",
-  "description": "Çevrimdışı Metro & Marmaray haritası, GPS, Pusula ve QR.",
+  "description": "Tüm Metro (M1-M11) ve Marmaray Haritası",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#121212",
