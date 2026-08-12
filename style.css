@@ -87,6 +87,7 @@ header {
   border: 1px solid var(--border);
   margin-top: 15px;
   z-index: 1; /* For leaflet */
+  background: #2a2a2a; /* Yüklenirken simsiyah olmasın */
 }
 /* Marker CSS */
 .gps-marker {
@@ -105,6 +106,7 @@ button.primary {
   font-size: 1em;
   width: 100%;
   cursor: pointer;
+  margin-bottom: 10px;
 }
 button.success {
   background: #00c853;

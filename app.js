@@ -7,11 +7,20 @@ themeToggle.addEventListener('click', () => {
 });
 
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(console.error);
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    // Yeni versiyon varsa zorla güncelle
+    reg.addEventListener('updatefound', () => {
+      const newWorker = reg.installing;
+      newWorker.addEventListener('statechange', () => {
+        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          console.log('Yeni sürüm yüklendi, sayfayı yenileyin.');
+        }
+      });
+    });
+  }).catch(console.error);
 }
 
 // --- LEAFLET INTERACTIVE MAP ---
-// Varsayılan Koordinat (İstanbul)
 let map = L.map('map').setView([41.0082, 28.9784], 11);
 
 // Google Haritalar Katmanları (Tile Sunucuları)
@@ -33,7 +42,6 @@ const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z
 // Varsayılan olarak sokak haritasını ekle
 googleStreets.addTo(map);
 
-// Katman Kontrolü Ekle (Kullanıcı seçebilsin diye)
 const baseLayers = {
     "Varsayılan Harita": googleStreets,
     "Uydu": googleSatellite,
@@ -41,15 +49,13 @@ const baseLayers = {
 };
 L.control.layers(baseLayers).addTo(map);
 
-// Güzergahları Çiz (Marmaray ve Metrobüs)
+// Güzergahları Çiz
 const marmarayCoords = transitData.Marmaray.map(st => [st.lat, st.lng]);
 const metrobusCoords = transitData.Metrobüs.map(st => [st.lat, st.lng]);
 
 L.polyline(marmarayCoords, {color: '#006633', weight: 5, opacity: 0.8}).addTo(map).bindPopup('Marmaray Hattı');
 L.polyline(metrobusCoords, {color: '#e6b800', weight: 5, opacity: 0.8}).addTo(map).bindPopup('Metrobüs Hattı');
 
-
-// GPS Noktası için özel ikon (Mavi Nokta)
 const gpsIcon = L.divIcon({
   className: 'gps-marker',
   iconSize: [20, 20],
@@ -72,10 +78,9 @@ if ('geolocation' in navigator) {
     if(score > 100) score = 100;
     gpsQualityEl.innerText = '%' + Math.round(score);
     
-    // Haritada konumu güncelle
     if(!userMarker) {
       userMarker = L.marker([lat, lng], {icon: gpsIcon}).addTo(map);
-      map.setView([lat, lng], 14); // İlk bulduğunda zoom yap
+      map.setView([lat, lng], 14); 
     } else {
       userMarker.setLatLng([lat, lng]);
     }
@@ -91,7 +96,7 @@ if ('geolocation' in navigator) {
   gpsAccuracyEl.innerText = 'Desteklenmiyor';
 }
 
-// --- QR KOD LOGIC (Eski Kodlar Aynen Korundu) ---
+// --- QR KOD LOGIC ---
 const qrInput = document.getElementById('qr-input');
 const generateQrBtn = document.getElementById('generate-qr-btn');
 const qrResult = document.getElementById('qr-result');
