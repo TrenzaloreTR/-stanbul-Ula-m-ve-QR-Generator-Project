@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>İstUlaşım ve Navigasyon</title>
   <link rel="manifest" href="manifest.json">
-  <!-- Harita Görsel Hatalarını Önlemek İçin CDN -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -14,41 +13,30 @@
     <h2 style="margin: 0; font-size: 1.2rem;">Çevrimdışı Yön & Ulaşım</h2>
     <button id="theme-toggle">Gündüz Modu</button>
   </header>
-
   <div class="container">
     <div class="panel">
       <div class="data-grid">
-        <div class="data-box">
-          <div class="data-label">GPS Kesinliği</div>
-          <div class="data-value" id="gps-quality">%0</div>
-        </div>
-        <div class="data-box">
-          <div class="data-label">Sapma Payı</div>
-          <div class="data-value" id="gps-accuracy">Bağlanıyor...</div>
-        </div>
+        <div class="data-box"><div class="data-label">GPS Kesinliği</div><div class="data-value" id="gps-quality">%0</div></div>
+        <div class="data-box"><div class="data-label">Sapma Payı</div><div class="data-value" id="gps-accuracy">Bekleniyor</div></div>
       </div>
     </div>
-
-    <!-- İNTERAKTİF HARİTA EKLENTİSİ -->
     <div class="panel">
       <h3 style="margin-top: 0;">Çevrimdışı Bölge Haritası</h3>
-      <p style="font-size: 0.85em; opacity: 0.7; margin-bottom: 10px;">
-        Sağ üstteki ikon ile <strong>Uydu / Hibrit</strong> görünümüne geçebilirsiniz. İnternete bağlıyken gezdiğiniz her yer kalıcı olarak kaydedilir.
+      <p style="font-size: 0.85em; opacity: 0.7;">
+        <strong>Tüm Raylı Sistemler Eklendi.</strong> Metrobüs kaldırıldı. 
+        Durak isimlerini görebilmek için <strong>haritayı yakınlaştırın (zoom in)</strong>.
       </p>
       <div id="map"></div>
     </div>
-
     <div class="panel">
       <h3 style="margin-top: 0;">Çevrimdışı QR Kod Üretici</h3>
-      <input type="text" id="qr-input" class="input-field" placeholder="İçeriği buraya yazın...">
+      <input type="text" id="qr-input" class="input-field" placeholder="İçeriği yazın...">
       <button id="generate-qr-btn" class="primary">QR Kod Üret</button>
       <div id="qr-result" style="margin-top: 15px;"></div>
-      <button id="download-qr-btn" class="primary success" style="margin-top: 10px; display: none;">Oluşturulan QR Kodu İndir</button>
+      <button id="download-qr-btn" class="primary success" style="margin-top: 10px; display: none;">İndir</button>
     </div>
   </div>
-
   <script src="data.js"></script>
-  <!-- Harici kütüphaneler (Service Worker bunları otomatik önbelleğe alacak) -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="app.js"></script>

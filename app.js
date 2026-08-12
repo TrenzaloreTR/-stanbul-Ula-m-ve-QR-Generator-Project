@@ -2,81 +2,76 @@
 const themeToggle = document.getElementById('theme-toggle');
 themeToggle.addEventListener('click', () => {
   document.body.classList.toggle('light-mode');
-  const isLight = document.body.classList.contains('light-mode');
-  themeToggle.innerText = isLight ? 'Karanlık Mod' : 'Gündüz Modu';
+  themeToggle.innerText = document.body.classList.contains('light-mode') ? 'Karanlık Mod' : 'Gündüz Modu';
 });
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').then(reg => {
-    // Yeni versiyon varsa zorla güncelle
     reg.addEventListener('updatefound', () => {
       const newWorker = reg.installing;
       newWorker.addEventListener('statechange', () => {
         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-          console.log('Yeni sürüm yüklendi, sayfayı yenileyin.');
+          console.log('Güncellendi');
         }
       });
     });
-  }).catch(console.error);
+  });
 }
 
-// --- LEAFLET INTERACTIVE MAP ---
+// --- LEAFLET MAP ---
 let map = L.map('map').setView([41.0082, 28.9784], 11);
 
-// Google Haritalar Katmanları (Tile Sunucuları)
-const googleStreets = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-    maxZoom: 20,
-    attribution: 'Google Maps'
+const googleStreets = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 20, attribution: 'Google' }).addTo(map);
+const googleSatellite = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { maxZoom: 20 });
+const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { maxZoom: 20 });
+
+L.control.layers({"Harita": googleStreets, "Uydu": googleSatellite, "Hibrit": googleHybrid}).addTo(map);
+
+// ZOOM LOGIC FOR LABELS (Harita uzakken isimler birbirine girmesin diye)
+document.body.classList.add('hide-labels');
+map.on('zoomend', () => {
+  if (map.getZoom() >= 13) {
+    document.body.classList.remove('hide-labels');
+  } else {
+    document.body.classList.add('hide-labels');
+  }
 });
 
-const googleSatellite = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
-    maxZoom: 20,
-    attribution: 'Google Maps Satellite'
-});
+// Hatları ve Durakları Çiz (Nokta Nokta ve İsimleriyle)
+for (const [lineName, stations] of Object.entries(transitData)) {
+  const coords = stations.map(s => [s.lat, s.lng]);
+  const color = lineColors[lineName] || "#ff0000";
+  
+  // Ana Çizgi
+  L.polyline(coords, {color: color, weight: 5, opacity: 0.8}).addTo(map);
+  
+  // Noktalar ve İsimler
+  stations.forEach(s => {
+    L.circleMarker([s.lat, s.lng], {
+      radius: 5,
+      fillColor: "#fff",
+      color: color,
+      weight: 2,
+      fillOpacity: 1
+    }).addTo(map)
+      .bindTooltip(s.name, {
+        permanent: true,       // İsimler her zaman var
+        direction: 'right',    // Sağında dursun
+        className: 'station-label' // Kendi özel tasarımımız
+      });
+  });
+}
 
-const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-    maxZoom: 20,
-    attribution: 'Google Maps Hybrid'
-});
-
-// Varsayılan olarak sokak haritasını ekle
-googleStreets.addTo(map);
-
-const baseLayers = {
-    "Varsayılan Harita": googleStreets,
-    "Uydu": googleSatellite,
-    "Hibrit": googleHybrid
-};
-L.control.layers(baseLayers).addTo(map);
-
-// Güzergahları Çiz
-const marmarayCoords = transitData.Marmaray.map(st => [st.lat, st.lng]);
-const metrobusCoords = transitData.Metrobüs.map(st => [st.lat, st.lng]);
-
-L.polyline(marmarayCoords, {color: '#006633', weight: 5, opacity: 0.8}).addTo(map).bindPopup('Marmaray Hattı');
-L.polyline(metrobusCoords, {color: '#e6b800', weight: 5, opacity: 0.8}).addTo(map).bindPopup('Metrobüs Hattı');
-
-const gpsIcon = L.divIcon({
-  className: 'gps-marker',
-  iconSize: [20, 20],
-  iconAnchor: [10, 10]
-});
+// GPS Logic
+const gpsIcon = L.divIcon({ className: 'gps-marker', iconSize: [20, 20], iconAnchor: [10, 10] });
 let userMarker = null;
-
-// --- GPS LOGIC ---
-const gpsAccuracyEl = document.getElementById('gps-accuracy');
-const gpsQualityEl = document.getElementById('gps-quality');
 
 if ('geolocation' in navigator) {
   navigator.geolocation.watchPosition((pos) => {
-    const lat = pos.coords.latitude;
-    const lng = pos.coords.longitude;
-    const acc = pos.coords.accuracy;
-    
-    gpsAccuracyEl.innerText = acc.toFixed(1) + ' m';
-    let score = Math.max(0, 100 - ((acc - 3) * 2));
-    if(score > 100) score = 100;
-    gpsQualityEl.innerText = '%' + Math.round(score);
+    const lat = pos.coords.latitude; const lng = pos.coords.longitude;
+    document.getElementById('gps-accuracy').innerText = pos.coords.accuracy.toFixed(1) + ' m';
+    let score = Math.max(0, 100 - ((pos.coords.accuracy - 3) * 2));
+    document.getElementById('gps-quality').innerText = '%' + Math.round(score > 100 ? 100 : score);
     
     if(!userMarker) {
       userMarker = L.marker([lat, lng], {icon: gpsIcon}).addTo(map);
@@ -84,46 +79,15 @@ if ('geolocation' in navigator) {
     } else {
       userMarker.setLatLng([lat, lng]);
     }
-  }, (err) => {
-    gpsAccuracyEl.innerText = 'Bağlantı Yok';
-    gpsQualityEl.innerText = '%0';
-  }, {
-    enableHighAccuracy: true,
-    maximumAge: 0,
-    timeout: 5000
-  });
-} else {
-  gpsAccuracyEl.innerText = 'Desteklenmiyor';
+  }, () => {}, { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 });
 }
 
-// --- QR KOD LOGIC ---
-const qrInput = document.getElementById('qr-input');
-const generateQrBtn = document.getElementById('generate-qr-btn');
-const qrResult = document.getElementById('qr-result');
-const downloadQrBtn = document.getElementById('download-qr-btn');
-
-generateQrBtn.addEventListener('click', () => {
-  const text = qrInput.value.trim();
-  if (!text) return alert("Lütfen geçerli bir metin girin.");
-  
-  qrResult.innerHTML = ''; 
-  qrResult.style.display = 'flex';
-  
-  new QRCode(qrResult, {
-    text: text, width: 200, height: 200,
-    colorDark : "#000000", colorLight : "#ffffff",
-    correctLevel : QRCode.CorrectLevel.H
-  });
-  downloadQrBtn.style.display = 'block';
-});
-
-downloadQrBtn.addEventListener('click', () => {
-  const img = qrResult.querySelector('img');
-  const qrCanvas = qrResult.querySelector('canvas');
-  let url = img && img.src.startsWith('data:') ? img.src : (qrCanvas ? qrCanvas.toDataURL() : '');
-  if(url) {
-    const a = document.createElement('a');
-    a.href = url; a.download = 'QR_Kod.png';
-    a.click();
-  }
+// QR KOD LOGIC
+document.getElementById('generate-qr-btn').addEventListener('click', () => {
+  const text = document.getElementById('qr-input').value.trim();
+  if (!text) return alert("Lütfen metin girin.");
+  const qrResult = document.getElementById('qr-result');
+  qrResult.innerHTML = ''; qrResult.style.display = 'flex';
+  new QRCode(qrResult, { text: text, width: 200, height: 200 });
+  document.getElementById('download-qr-btn').style.display = 'block';
 });
