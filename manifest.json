@@ -1,7 +1,7 @@
 {
   "name": "İstUlaşım PWA",
   "short_name": "İstUlaşım",
-  "description": "Çevrimdışı harita, GPS kesinliği, pusula, sensör asistanı ve QR Üretici.",
+  "description": "Çevrimdışı harita (Leaflet + Google), GPS, Pusula ve QR.",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#121212",

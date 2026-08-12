@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>İstUlaşım ve Navigasyon</title>
   <link rel="manifest" href="manifest.json">
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="assets/leaflet.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body class="dark-mode">
@@ -25,47 +27,32 @@
           <div class="data-value" id="gps-accuracy">Bağlanıyor...</div>
         </div>
       </div>
-
-      <div class="instrument-cluster">
-        <div class="compass-container">
-          <div class="compass-dial" id="compass-dial"></div>
-          <div class="crosshair"></div>
-          <div class="horizon-container">
-            <div class="horizon-line" id="horizon-line"></div>
-          </div>
-        </div>
-        <div class="instructions" id="sensor-instructions">
-          Kullanıma başlamak için sensör izni verin.
-        </div>
-        <button id="request-compass" class="primary">Pusula & Sensörleri Başlat</button>
-      </div>
     </div>
 
+    <!-- İNTERAKTİF HARİTA EKLENTİSİ -->
     <div class="panel">
       <h3 style="margin-top: 0;">Çevrimdışı Bölge Haritası</h3>
       <p style="font-size: 0.85em; opacity: 0.7; margin-bottom: 0;">
-        Yeşil: Marmaray, Sarı: Metrobüs. Mavi noktanız GPS üzerinden ilerler.
+        <strong>Önemli:</strong> İnternetiniz varken incelediğiniz bölgeler telefon hafızasına (Cache) kalıcı olarak kaydedilir ve yeraltında da açılır.<br>
+        Sağ üstteki ikon ile <strong>Uydu / Hibrit</strong> görünümüne geçebilirsiniz. Yeşil: Marmaray, Sarı: Metrobüs.
       </p>
-      <canvas id="offlineMap" width="400" height="250"></canvas>
+      <!-- Canvas yerine artık dinamik Leaflet haritası var -->
+      <div id="map"></div>
     </div>
 
-    <!-- YENI QR KOD EKLENTISI -->
     <div class="panel">
       <h3 style="margin-top: 0;">Çevrimdışı QR Kod Üretici</h3>
-      <p style="font-size: 0.85em; opacity: 0.7; margin-bottom: 15px;">
-        URL, metin veya WiFi şifresi girerek çevrimdışı QR kod oluşturun.
-      </p>
       <input type="text" id="qr-input" class="input-field" placeholder="İçeriği buraya yazın...">
       <button id="generate-qr-btn" class="primary">QR Kod Üret</button>
-      
       <div id="qr-result" style="margin-top: 15px;"></div>
       <button id="download-qr-btn" class="primary success" style="margin-top: 10px; display: none;">Oluşturulan QR Kodu İndir</button>
     </div>
   </div>
 
   <script src="data.js"></script>
-  <!-- Harici kütüphane çevrimdışı çalışma için yerel olarak eklendi -->
-  <script src="qrcode.min.js"></script>
+  <!-- Harici kütüphaneler çevrimdışı kullanım için yerelde -->
+  <script src="assets/leaflet.js"></script>
+  <script src="assets/qrcode.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

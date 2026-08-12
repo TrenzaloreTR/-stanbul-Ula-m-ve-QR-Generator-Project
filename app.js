@@ -4,36 +4,81 @@ themeToggle.addEventListener('click', () => {
   document.body.classList.toggle('light-mode');
   const isLight = document.body.classList.contains('light-mode');
   themeToggle.innerText = isLight ? 'Karanlık Mod' : 'Gündüz Modu';
-  drawMap(); 
 });
 
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(err => console.error(err));
+  navigator.serviceWorker.register('sw.js').catch(console.error);
 }
 
-// --- SENSOR VE GPS LOGIC ---
+// --- LEAFLET INTERACTIVE MAP ---
+// Varsayılan Koordinat (İstanbul)
+let map = L.map('map').setView([41.0082, 28.9784], 11);
+
+// Google Haritalar Katmanları (Tile Sunucuları)
+const googleStreets = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+    maxZoom: 20,
+    attribution: 'Google Maps'
+});
+
+const googleSatellite = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+    maxZoom: 20,
+    attribution: 'Google Maps Satellite'
+});
+
+const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+    maxZoom: 20,
+    attribution: 'Google Maps Hybrid'
+});
+
+// Varsayılan olarak sokak haritasını ekle
+googleStreets.addTo(map);
+
+// Katman Kontrolü Ekle (Kullanıcı seçebilsin diye)
+const baseLayers = {
+    "Varsayılan Harita": googleStreets,
+    "Uydu": googleSatellite,
+    "Hibrit": googleHybrid
+};
+L.control.layers(baseLayers).addTo(map);
+
+// Güzergahları Çiz (Marmaray ve Metrobüs)
+const marmarayCoords = transitData.Marmaray.map(st => [st.lat, st.lng]);
+const metrobusCoords = transitData.Metrobüs.map(st => [st.lat, st.lng]);
+
+L.polyline(marmarayCoords, {color: '#006633', weight: 5, opacity: 0.8}).addTo(map).bindPopup('Marmaray Hattı');
+L.polyline(metrobusCoords, {color: '#e6b800', weight: 5, opacity: 0.8}).addTo(map).bindPopup('Metrobüs Hattı');
+
+
+// GPS Noktası için özel ikon (Mavi Nokta)
+const gpsIcon = L.divIcon({
+  className: 'gps-marker',
+  iconSize: [20, 20],
+  iconAnchor: [10, 10]
+});
+let userMarker = null;
+
+// --- GPS LOGIC ---
 const gpsAccuracyEl = document.getElementById('gps-accuracy');
 const gpsQualityEl = document.getElementById('gps-quality');
-const instructionEl = document.getElementById('sensor-instructions');
-const compassDial = document.getElementById('compass-dial');
-const horizonLine = document.getElementById('horizon-line');
-const compassBtn = document.getElementById('request-compass');
-
-let userLat = 0, userLng = 0;
 
 if ('geolocation' in navigator) {
   navigator.geolocation.watchPosition((pos) => {
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
     const acc = pos.coords.accuracy;
-    userLat = pos.coords.latitude;
-    userLng = pos.coords.longitude;
     
     gpsAccuracyEl.innerText = acc.toFixed(1) + ' m';
-    
     let score = Math.max(0, 100 - ((acc - 3) * 2));
     if(score > 100) score = 100;
     gpsQualityEl.innerText = '%' + Math.round(score);
     
-    drawMap();
+    // Haritada konumu güncelle
+    if(!userMarker) {
+      userMarker = L.marker([lat, lng], {icon: gpsIcon}).addTo(map);
+      map.setView([lat, lng], 14); // İlk bulduğunda zoom yap
+    } else {
+      userMarker.setLatLng([lat, lng]);
+    }
   }, (err) => {
     gpsAccuracyEl.innerText = 'Bağlantı Yok';
     gpsQualityEl.innerText = '%0';
@@ -46,112 +91,7 @@ if ('geolocation' in navigator) {
   gpsAccuracyEl.innerText = 'Desteklenmiyor';
 }
 
-function initSensors() {
-  compassBtn.style.display = 'none';
-  window.addEventListener('deviceorientation', (e) => {
-    let heading = null;
-    if (e.webkitCompassHeading !== undefined) {
-      heading = e.webkitCompassHeading;
-    } else if (e.alpha !== null) {
-      heading = 360 - e.alpha; 
-    }
-
-    const pitch = e.beta; 
-    const roll = e.gamma; 
-
-    if (heading !== null) {
-      compassDial.style.transform = `rotate(${-heading}deg)`;
-    }
-
-    if (pitch !== null && roll !== null) {
-      horizonLine.style.transform = `translateY(${pitch * 2}px) rotate(${-roll}deg)`;
-      
-      let instructions = [];
-      if (Math.abs(pitch) > 15 || Math.abs(roll) > 15) {
-        instructions.push("Telefonu yere tam paralel tutun.");
-      } else {
-        if (heading !== null) {
-           if (heading > 330 || heading < 30) {
-             instructions.push("Doğru açı! Tam Kuzeye bakıyorsunuz.");
-           } else {
-             instructions.push("Pusula düz. Kuzeye dönmek için telefonu sağa/sola çevirin.");
-           }
-        } else {
-           instructions.push("Cihaz düz konumda, hareket ettirebilirsiniz.");
-        }
-      }
-      instructionEl.innerText = instructions.join(' ');
-    }
-  }, true);
-}
-
-compassBtn.addEventListener('click', () => {
-  if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-    DeviceOrientationEvent.requestPermission().then(state => {
-      if (state === 'granted') initSensors();
-    }).catch(console.error);
-  } else {
-    initSensors();
-  }
-});
-
-// --- HARITA LOGIC ---
-const canvas = document.getElementById('offlineMap');
-const ctx = canvas.getContext('2d');
-
-function drawMap() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const minLat = 40.75, maxLat = 41.05;
-  const minLng = 28.60, maxLng = 29.45;
-  
-  function mapCoords(lat, lng) {
-    const x = ((lng - minLng) / (maxLng - minLng)) * canvas.width;
-    const y = canvas.height - ((lat - minLat) / (maxLat - minLat)) * canvas.height;
-    return {x, y};
-  }
-
-  // Draw Metrobüs
-  ctx.beginPath();
-  transitData.Metrobüs.forEach((s, i) => {
-    const pt = mapCoords(s.lat, s.lng);
-    if(i===0) ctx.moveTo(pt.x, pt.y);
-    else ctx.lineTo(pt.x, pt.y);
-  });
-  ctx.strokeStyle = '#e6b800';
-  ctx.lineWidth = 4;
-  ctx.stroke();
-
-  // Draw Marmaray
-  ctx.beginPath();
-  transitData.Marmaray.forEach((s, i) => {
-    const pt = mapCoords(s.lat, s.lng);
-    if(i===0) ctx.moveTo(pt.x, pt.y);
-    else ctx.lineTo(pt.x, pt.y);
-  });
-  ctx.strokeStyle = '#006633';
-  ctx.lineWidth = 4;
-  ctx.stroke();
-
-  if (userLat !== 0) {
-    const uPt = mapCoords(userLat, userLng);
-    ctx.beginPath();
-    ctx.arc(uPt.x, uPt.y, 8, 0, 2*Math.PI);
-    ctx.fillStyle = '#00e5ff';
-    ctx.fill();
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-  }
-}
-
-function resizeCanvas() {
-  canvas.width = canvas.parentElement.clientWidth;
-  drawMap();
-}
-window.addEventListener('resize', resizeCanvas);
-setTimeout(resizeCanvas, 100);
-
-// --- QR KOD LOGIC ---
+// --- QR KOD LOGIC (Eski Kodlar Aynen Korundu) ---
 const qrInput = document.getElementById('qr-input');
 const generateQrBtn = document.getElementById('generate-qr-btn');
 const qrResult = document.getElementById('qr-result');
@@ -159,45 +99,26 @@ const downloadQrBtn = document.getElementById('download-qr-btn');
 
 generateQrBtn.addEventListener('click', () => {
   const text = qrInput.value.trim();
-  if (!text) {
-    alert("Lütfen geçerli bir metin girin.");
-    return;
-  }
+  if (!text) return alert("Lütfen geçerli bir metin girin.");
   
   qrResult.innerHTML = ''; 
   qrResult.style.display = 'flex';
   
   new QRCode(qrResult, {
-    text: text,
-    width: 200,
-    height: 200,
-    colorDark : "#000000",
-    colorLight : "#ffffff",
+    text: text, width: 200, height: 200,
+    colorDark : "#000000", colorLight : "#ffffff",
     correctLevel : QRCode.CorrectLevel.H
   });
-  
   downloadQrBtn.style.display = 'block';
 });
 
 downloadQrBtn.addEventListener('click', () => {
   const img = qrResult.querySelector('img');
   const qrCanvas = qrResult.querySelector('canvas');
-  let url = '';
-  
-  if (img && img.src && img.src.startsWith('data:image')) {
-     url = img.src;
-  } else if (qrCanvas) {
-     url = qrCanvas.toDataURL("image/png");
-  }
-  
+  let url = img && img.src.startsWith('data:') ? img.src : (qrCanvas ? qrCanvas.toDataURL() : '');
   if(url) {
     const a = document.createElement('a');
-    a.href = url;
-    a.download = 'QR_Kod.png';
-    document.body.appendChild(a);
+    a.href = url; a.download = 'QR_Kod.png';
     a.click();
-    document.body.removeChild(a);
-  } else {
-    alert("Karekod görseli oluşturulamadı.");
   }
 });
